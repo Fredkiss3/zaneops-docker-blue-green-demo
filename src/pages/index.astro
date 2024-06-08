@@ -47,7 +47,7 @@ function syntaxHighlight(json: string) {
 	<body class:list={["h-[100lvh] flex flex-col items-center justify-center px-5", slot === "BLUE" ? "bg-blue-400" : "bg-green-400" ]}>
 		<h1 class="text-5xl font-semibold">{slot}</h1>
 		
-		<details class="w-full" open>
+		<details class="w-full">
 			<summary>Env variables</summary>
 		<pre class="bg-amber-50 max-h-[45rem] rounded-md min-w-0 w-full overflow-auto" set:html={syntaxHighlight(JSON.stringify(process.env, null, 2))}></pre>
 
