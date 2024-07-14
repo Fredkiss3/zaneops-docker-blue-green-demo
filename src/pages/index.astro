@@ -1,56 +1,87 @@
 ---
-const slot = process.env.ZANE_DEPLOYMENT_SLOT ?? "BLUE"
+const slot = process.env.ZANE_DEPLOYMENT_SLOT ?? "BLUE";
 // @ts-expect-error
-Astro.response.headers.set('X-Zane-dpl-slot', process.env.ZANE_DEPLOYMENT_SLOT);
+Astro.response.headers.set("X-Zane-dpl-slot", process.env.ZANE_DEPLOYMENT_SLOT);
 // @ts-expect-error
-Astro.response.headers.set('X-Zane-dpl-ha', process.env.ZANE_DEPLOYMENT_HASH); 
+Astro.response.headers.set("X-Zane-dpl-ha", process.env.ZANE_DEPLOYMENT_HASH);
 // @ts-expect-error
-Astro.response.headers.set('X-Zane-dpl-type', process.env.ZANE_DEPLOYMENT_TYPE);
+Astro.response.headers.set("X-Zane-dpl-type", process.env.ZANE_DEPLOYMENT_TYPE);
 
 function syntaxHighlight(json: string) {
-    return json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, (match) => {
-        let cls = 'number';
-        if (/^"/.test(match)) {
-            if (/:$/.test(match)) {
-                cls = 'key';
-            } else {
-                cls = 'string';
+    return json
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(
+            /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
+            (match) => {
+                let cls = "number";
+                if (/^"/.test(match)) {
+                    if (/:$/.test(match)) {
+                        cls = "key";
+                    } else {
+                        cls = "string";
+                    }
+                } else if (/true|false/.test(match)) {
+                    cls = "boolean";
+                } else if (/null/.test(match)) {
+                    cls = "null";
+                }
+                return `<span class="${cls}">${match}</span>`;
             }
-        } else if (/true|false/.test(match)) {
-            cls = 'boolean';
-        } else if (/null/.test(match)) {
-            cls = 'null';
-        }
-        return `<span class="${cls}">${match}</span>`;
-    });
+        );
 }
+
+const domain = Astro.request.headers.get("host");
+const [parent, ...rest] = domain!.split(".");
 ---
 
 <html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<meta name="viewport" content="width=device-width" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Astro</title>
-		<style is:global>
-			pre {
-				outline: 1px solid #ccc; padding: 5px; margin: 5px; 
-			}
-			.string { color: #10b981; }
-			.number { color: darkorange; }
-			.boolean { color: blue; }
-			.null { color: magenta; }
-			.key { color: red; }
-		</style>
-	</head>
-	<body class:list={["h-[100lvh] flex flex-col items-center justify-center px-5", slot === "BLUE" ? "bg-blue-400" : "bg-green-400" ]}>
-		<h1 class="text-5xl font-semibold">{slot}</h1>
-		
-		<details class="w-full">
+    <head>
+        <meta charset="utf-8" />
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+        <meta name="viewport" content="width=device-width" />
+        <meta name="generator" content={Astro.generator} />
+        <title>Astro</title>
+        <style is:global>
+            pre {
+                outline: 1px solid #ccc;
+                padding: 5px;
+                margin: 5px;
+            }
+            .string {
+                color: #10b981;
+            }
+            .number {
+                color: darkorange;
+            }
+            .boolean {
+                color: blue;
+            }
+            .null {
+                color: magenta;
+            }
+            .key {
+                color: red;
+            }
+        </style>
+    </head>
+    <body
+        class:list={[
+            "h-[100lvh] flex flex-col items-center justify-center px-5",
+        ]}
+    >
+        <!-- <h1 class="text-5xl font-semibold">version: {slot}</h1> -->
+        <h1 class="text-3xl font-semibold">
+            Hell from : <span class="text-blue-600">{parent}</span>.{
+                rest.join(".")
+            }
+        </h1>
+
+        <!-- <details class="w-full">
 			<summary>Env variables</summary>
 		<pre class="bg-amber-50 max-h-[45rem] rounded-md min-w-0 w-full overflow-auto" set:html={syntaxHighlight(JSON.stringify(process.env, null, 2))}></pre>
 
-		</details>
-	</body>
+		</details> -->
+    </body>
 </html>
