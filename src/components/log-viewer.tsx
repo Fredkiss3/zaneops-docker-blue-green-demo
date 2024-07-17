@@ -60,22 +60,6 @@ export function LogViewer() {
     );
 }
 
-function removeDuplicates<TObject extends Record<string, any>>(
-    arr: TObject[],
-    key: keyof TObject
-): TObject[] {
-    const seen = new Set();
-    return arr.filter((item) => {
-        const keyValue = item[key];
-        if (seen.has(keyValue)) {
-            return false;
-        } else {
-            seen.add(keyValue);
-            return true;
-        }
-    });
-}
-
 function isScrolledIntoView(el: HTMLElement | null): boolean {
     if (!el) return false;
 
@@ -88,6 +72,31 @@ function isScrolledIntoView(el: HTMLElement | null): boolean {
     // Partially visible elements return true:
     //const isVisible = elemTop < window.innerHeight && elemBottom >= 0;
     return isVisible;
+}
+
+function escapeRegExp(input: string): string {
+    return input.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); // $& means the whole matched string
+}
+
+function getHighlightedText(text: string, highlight: string) {
+    // Split on highlight term and include term into parts, ignore case
+    const parts = text.split(new RegExp(`(${escapeRegExp(highlight)})`, "gi"));
+    return (
+        <span className="">
+            {parts.map((part, i) => (
+                <span
+                    key={i}
+                    className={
+                        part.toLowerCase() === highlight.toLowerCase()
+                            ? "bg-yellow-200/40"
+                            : ""
+                    }
+                >
+                    {part}
+                </span>
+            ))}
+        </span>
+    );
 }
 
 export function LogViewerContent() {
@@ -223,12 +232,21 @@ export function LogViewerContent() {
                 />
             </div>
 
-            <div className="bg-gray-800 rounded-lg px-4 h-[70vh] overflow-y-auto">
+            <div className="bg-gray-950 rounded-lg px-4 h-[70vh] overflow-y-auto">
                 <pre
                     id="logContent"
                     className="text-base whitespace-no-wrap overflow-x-scroll [font-family:GeistMono]"
                 >
                     <div className="w-full py-3" ref={logScrollTopRef} />
+                    {data && logsToRender.length === 0 && (
+                        <span className="italic text-gray-500">
+                            {!!searchValue ? (
+                                <>No logs matching filter `{searchValue}`</>
+                            ) : (
+                                <>No logs yets</>
+                            )}
+                        </span>
+                    )}
                     {logsToRender.map((log) => (
                         <div key={log.id} className="flex gap-2">
                             <span
@@ -240,7 +258,9 @@ export function LogViewerContent() {
                             >
                                 [{log.time}]
                             </span>
-                            {log.content}
+                            {!!searchValue
+                                ? getHighlightedText(log.content, searchValue)
+                                : log.content}
                         </div>
                     ))}
                     <div className="w-full py-3" ref={logScrollBottomRef} />
