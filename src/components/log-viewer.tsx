@@ -107,6 +107,13 @@ export function LogViewerContent() {
     const [dateEnd, setDateEnd] = React.useState<Date | null>(null);
     const queryClient = useQueryClient();
 
+    const queryKey = [
+        "logs",
+        searchValue,
+        dateEnd?.toISOString(),
+        dateStart?.toISOString(),
+    ] as const;
+
     const { data, fetchNextPage, hasNextPage, isFetching, isRefetching } =
         useInfiniteQuery<
             LogsApiResponse,
@@ -115,12 +122,7 @@ export function LogViewerContent() {
             QueryKey,
             string | null
         >({
-            queryKey: [
-                "logs",
-                searchValue,
-                dateEnd?.toISOString(),
-                dateStart?.toISOString(),
-            ] as const,
+            queryKey,
             queryFn: async ({ pageParam, signal }) => {
                 const searchParams = new URLSearchParams();
                 if (pageParam) {
@@ -136,10 +138,9 @@ export function LogViewerContent() {
                     searchParams.append("time_before", dateEnd.toISOString());
                 }
 
-                const allData = queryClient.getQueryData([
-                    "logs",
-                    searchValue,
-                ]) as InfiniteData<LogsApiResponse, string | null>;
+                const allData = queryClient.getQueryData(
+                    queryKey
+                ) as InfiniteData<LogsApiResponse, string | null>;
 
                 const existingData = allData?.pages.find(
                     (_, index) => allData?.pageParams[index] === pageParam
@@ -152,10 +153,6 @@ export function LogViewerContent() {
                 if (existingData?.cursor) {
                     searchParams.set("cursor", existingData.cursor);
                 }
-
-                // console.log(
-                //     `Fetching data with cursor : ${searchParams.get("cursor")}`
-                // );
 
                 const data = await fetch(
                     `/api/logs?${searchParams.toString()}`,
