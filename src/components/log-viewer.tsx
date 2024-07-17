@@ -68,9 +68,9 @@ function isScrolledIntoView(el: HTMLElement | null): boolean {
     const elemBottom = rect.bottom;
 
     // Only completely visible elements return true:
-    const isVisible = elemTop >= 0 && elemBottom <= window.innerHeight;
+    // const isVisible = elemTop >= 0 && elemBottom <= window.innerHeight;
     // Partially visible elements return true:
-    //const isVisible = elemTop < window.innerHeight && elemBottom >= 0;
+    const isVisible = elemTop < window.innerHeight && elemBottom >= 0;
     return isVisible;
 }
 
@@ -103,6 +103,8 @@ export function LogViewerContent() {
     const logScrollTopRef = React.useRef<React.ElementRef<"div">>(null);
     const logScrollBottomRef = React.useRef<React.ElementRef<"div">>(null);
     const [searchValue, setSearchValue] = React.useState("");
+    const [dateStart, setDateStart] = React.useState<Date | null>(null);
+    const [dateEnd, setDateEnd] = React.useState<Date | null>(null);
     const queryClient = useQueryClient();
 
     const { data, fetchNextPage, hasNextPage, isFetching, isRefetching } =
@@ -113,7 +115,12 @@ export function LogViewerContent() {
             QueryKey,
             string | null
         >({
-            queryKey: ["logs", searchValue] as const,
+            queryKey: [
+                "logs",
+                searchValue,
+                dateEnd?.toISOString(),
+                dateStart?.toISOString(),
+            ] as const,
             queryFn: async ({ pageParam, signal }) => {
                 const searchParams = new URLSearchParams();
                 if (pageParam) {
@@ -122,6 +129,13 @@ export function LogViewerContent() {
                 if (searchValue.trim()) {
                     searchParams.append("content", searchValue);
                 }
+                if (dateStart) {
+                    searchParams.append("time_after", dateStart.toISOString());
+                }
+                if (dateEnd) {
+                    searchParams.append("time_before", dateEnd.toISOString());
+                }
+
                 const allData = queryClient.getQueryData([
                     "logs",
                     searchValue,
@@ -209,7 +223,7 @@ export function LogViewerContent() {
         }
     }, [hasNextPage, isFetching, isRefetching]);
 
-    React.useEffect(() => {
+    React.useLayoutEffect(() => {
         // whenever we get new data, and we were in the end position,
         // we scroll back to it, to tail the data
         if (isScrolledIntoView(logScrollBottomRef.current)) {
@@ -221,18 +235,57 @@ export function LogViewerContent() {
     }, [data]);
 
     return (
-        <div className="container mx-auto px-4 py-14 flex flex-col gap-4">
-            <div className="flex justify-between items-center">
+        <div className="container mx-auto px-4 pb-14 pt-5 flex flex-col gap-4">
+            <div className="flex flex-col gap-4 items-start">
                 <h1 className="text-2xl font-bold mb-4">Log Stream</h1>
-                <input
-                    placeholder="filter content"
-                    className="border border-gray-600 px-4 py-2 rounded-md bg-gray-950"
-                    defaultValue={searchValue}
-                    onChange={(e) => setSearchValue(e.currentTarget.value)}
-                />
+                <fieldset className="flex flex-col gap-2">
+                    <div>
+                        <label
+                            htmlFor="dateStart"
+                            className="inline-block w-40"
+                        >
+                            Starting from :
+                        </label>
+                        <input
+                            type="datetime-local"
+                            id="dateStart"
+                            className="border-gray-600 rounded-md px-2 py-2 bg-gray-950  text-white"
+                            onChange={(e) =>
+                                setDateStart(new Date(e.currentTarget.value))
+                            }
+                        />
+                    </div>
+                    <div>
+                        <label htmlFor="dateEnd" className="inline-block w-40">
+                            Until :
+                        </label>
+                        <input
+                            type="datetime-local"
+                            id="dateEnd"
+                            className="border-gray-600  rounded-md px-2 py-2 bg-gray-950 text-white"
+                            onChange={(e) =>
+                                setDateEnd(new Date(e.currentTarget.value))
+                            }
+                        />
+                    </div>
+
+                    <div>
+                        <label htmlFor="query" className="inline-block w-40">
+                            Query :
+                        </label>
+                        <input
+                            placeholder="filter logs"
+                            id="query"
+                            className="border border-gray-600 px-4 py-2 rounded-md bg-gray-950"
+                            onChange={(e) =>
+                                setSearchValue(e.currentTarget.value)
+                            }
+                        />
+                    </div>
+                </fieldset>
             </div>
 
-            <div className="bg-gray-950 rounded-lg px-4 h-[70vh] overflow-y-auto">
+            <div className="bg-gray-950 rounded-lg px-4 pb-2 h-[65vh] overflow-y-auto">
                 <pre
                     id="logContent"
                     className="text-base whitespace-no-wrap overflow-x-scroll [font-family:GeistMono]"
@@ -256,7 +309,7 @@ export function LogViewerContent() {
                                         : "text-red-400"
                                 }
                             >
-                                [{log.time}]
+                                [{new Date(log.time).toLocaleString()}]
                             </span>
                             {!!searchValue
                                 ? getHighlightedText(log.content, searchValue)
