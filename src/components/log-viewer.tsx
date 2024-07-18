@@ -99,6 +99,11 @@ function getHighlightedText(text: string, highlight: string) {
     );
 }
 
+function isValidDate(d: any) {
+    // @ts-expect-error invalid date is NaN but TS complains for some reason
+    return d instanceof Date && !isNaN(d);
+}
+
 export function LogViewerContent() {
     const logScrollTopRef = React.useRef<React.ElementRef<"div">>(null);
     const logScrollBottomRef = React.useRef<React.ElementRef<"div">>(null);
@@ -146,8 +151,16 @@ export function LogViewerContent() {
                     (_, index) => allData?.pageParams[index] === pageParam
                 );
 
+                /**
+                 * We reuse the data in the query as we are sure this page is immutable,
+                 * And we don't want to refetch the same logs that we have already fetched.
+                 *
+                 * However if we have the data in the cache and previous is `null`,
+                 * it means that that page is the last and the next time we fetch it,
+                 * it might have more data.
+                 * Inspired by: https://github.com/TanStack/query/discussions/5921
+                 */
                 if (existingData && existingData.previous) {
-                    // console.log(`Reusing data (cursor: ${pageParam})`);
                     return existingData;
                 }
                 if (existingData?.cursor) {
@@ -191,6 +204,10 @@ export function LogViewerContent() {
                     results: data.results.toReversed(),
                 };
             },
+            // we use the inverse of the cursors we get from the API
+            // because the API order them by time but in descending order,
+            // so the next page is actually the oldest,
+            // we flip it here because we want to keep it consistent with our UI
             getNextPageParam: ({ previous }) => previous,
             getPreviousPageParam: ({ next }) => next,
             initialPageParam: null,
@@ -247,9 +264,12 @@ export function LogViewerContent() {
                             type="datetime-local"
                             id="dateStart"
                             className="border-gray-600 rounded-md px-2 py-2 bg-gray-950  text-white"
-                            onChange={(e) =>
-                                setDateStart(new Date(e.currentTarget.value))
-                            }
+                            onChange={(e) => {
+                                const datStrt = new Date(e.currentTarget.value);
+                                if (isValidDate(datStrt)) {
+                                    setDateStart(datStrt);
+                                }
+                            }}
                         />
                     </div>
                     <div>
@@ -260,9 +280,12 @@ export function LogViewerContent() {
                             type="datetime-local"
                             id="dateEnd"
                             className="border-gray-600  rounded-md px-2 py-2 bg-gray-950 text-white"
-                            onChange={(e) =>
-                                setDateEnd(new Date(e.currentTarget.value))
-                            }
+                            onChange={(e) => {
+                                const datEnd = new Date(e.currentTarget.value);
+                                if (isValidDate(datEnd)) {
+                                    setDateEnd(datEnd);
+                                }
+                            }}
                         />
                     </div>
 
