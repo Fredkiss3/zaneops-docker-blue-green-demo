@@ -104,6 +104,38 @@ function isValidDate(d: any) {
     return d instanceof Date && !isNaN(d);
 }
 
+function colorLogs(text: string) {
+    const ansiStyles: Record<string, string> = {
+        "\u001b[92m": "text-green-500",
+        "\u001b[94m": "text-blue-500",
+        "\u001b[93m": "text-yellow-500",
+        "\u001b[91m": "text-red-500",
+        "\u001b[0m": "", // Reset to default color
+    };
+
+    Object.keys(ansiStyles).forEach((ansiCode) => {
+        const safeAnsiCode = escapeRegExp(ansiCode);
+        const tailwindClass = ansiStyles[ansiCode];
+
+        // Replace ANSI code with the corresponding styled span tag and close any open span before it
+        text = text.replace(
+            new RegExp(safeAnsiCode, "g"),
+            (match, offset, string) => {
+                if (tailwindClass) {
+                    return `</span><span class="${tailwindClass}">`;
+                } else {
+                    return "</span>";
+                }
+            }
+        );
+    });
+
+    // Ensure all opened <span> tags are closed by removing any leading </span> tags
+    text = text.replace(/^<\/span>/, "");
+
+    return <span dangerouslySetInnerHTML={{ __html: text }} />;
+}
+
 export function LogViewerContent() {
     const logScrollTopRef = React.useRef<React.ElementRef<"div">>(null);
     const logScrollBottomRef = React.useRef<React.ElementRef<"div">>(null);
@@ -111,9 +143,13 @@ export function LogViewerContent() {
     const [dateStart, setDateStart] = React.useState<Date | null>(null);
     const [dateEnd, setDateEnd] = React.useState<Date | null>(null);
     const queryClient = useQueryClient();
+    const [deploymentId, setDeploymentId] = React.useState("");
+    const [serviceSlug, setServiceSlug] = React.useState("nginx-demo");
 
     const queryKey = [
         "logs",
+        serviceSlug,
+        deploymentId,
         searchValue,
         dateEnd?.toISOString(),
         dateStart?.toISOString(),
@@ -128,6 +164,7 @@ export function LogViewerContent() {
             string | null
         >({
             queryKey,
+            enabled: Boolean(serviceSlug) && Boolean(deploymentId),
             queryFn: async ({ pageParam, signal }) => {
                 const searchParams = new URLSearchParams();
                 if (pageParam) {
@@ -168,7 +205,7 @@ export function LogViewerContent() {
                 }
 
                 const data = await fetch(
-                    `/api/logs?${searchParams.toString()}`,
+                    `/api/${serviceSlug}/${deploymentId}/logs?${searchParams.toString()}`,
                     {
                         signal,
                         credentials: "include",
@@ -187,7 +224,7 @@ export function LogViewerContent() {
                 if (pageParam === null && data.next !== null && !data.cursor) {
                     searchParams.set("cursor", data.next);
                     const nextPage = await fetch(
-                        `/api/logs?${searchParams.toString()}`,
+                        `/api/${serviceSlug}/${deploymentId}/logs?${searchParams.toString()}`,
                         {
                             signal,
                             credentials: "include",
@@ -302,6 +339,41 @@ export function LogViewerContent() {
                             }
                         />
                     </div>
+
+                    <div>
+                        <label
+                            htmlFor="service-slug"
+                            className="inline-block w-40"
+                        >
+                            Service Slug :
+                        </label>
+                        <input
+                            placeholder=""
+                            id="service-slug"
+                            defaultValue={serviceSlug}
+                            className="border border-gray-600 px-4 py-2 rounded-md bg-gray-950"
+                            onChange={(e) =>
+                                setServiceSlug(e.currentTarget.value.trim())
+                            }
+                        />
+                    </div>
+
+                    <div>
+                        <label
+                            htmlFor="deployment-id"
+                            className="inline-block w-40"
+                        >
+                            Deployment Id :
+                        </label>
+                        <input
+                            placeholder=""
+                            id="deployment-id"
+                            className="border border-gray-600 px-4 py-2 rounded-md bg-gray-950"
+                            onChange={(e) =>
+                                setDeploymentId(e.currentTarget.value.trim())
+                            }
+                        />
+                    </div>
                 </fieldset>
             </div>
 
@@ -333,7 +405,7 @@ export function LogViewerContent() {
                             </span>
                             {!!searchValue
                                 ? getHighlightedText(log.content, searchValue)
-                                : log.content}
+                                : colorLogs(log.content)}
                         </div>
                     ))}
                     <div className="w-full py-3" ref={logScrollBottomRef} />
